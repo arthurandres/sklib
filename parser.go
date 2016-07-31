@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"os"
@@ -30,11 +32,11 @@ type AnywhereQuery struct {
 }
 
 type RouteDto struct {
-	Price         string
 	QuoteDateTime string
-	OriginId      int
-	DestinationId int
+	Price         json.Number
 	QuoteIds      []int `xml:">int"`
+	DestinationId int
+	OriginId      int
 }
 
 type Leg struct {
@@ -63,6 +65,13 @@ type PlaceDto struct {
 type CarriersDto struct {
 	CarrierId int
 	Name      string
+}
+
+func ParseAnywhereQuery(data []byte) AnywhereQuery {
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	var anywhere AnywhereQuery
+	decoder.Decode(&anywhere)
+	return anywhere
 }
 
 func parse() {

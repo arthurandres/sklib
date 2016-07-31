@@ -4,7 +4,7 @@ http://partners.api.skyscanner.net/apiservices/browseroutes/v1.0/GB/GBP/en-GB/LO
 
 TODO:
 - try to have a generic parsing function
-- add full parsing
+- add cache
 - send request and parse
 - send request in cascade
 - build command line tool

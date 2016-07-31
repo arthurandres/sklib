@@ -2,8 +2,31 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 )
+
+type QueryEngine interface {
+	Get(url string) (payload []byte, err error)
+}
+
+type LiveEngine struct {
+	Key string
+}
+
+func (m LiveEngine) Get(url string) ([]byte, error) {
+
+	fullUrl := url + "?apiKey=" + m.Key
+	resp, err := http.Get(fullUrl)
+	fmt.Println(fullUrl)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(resp)
+	defer resp.Body.Close()
+	return ioutil.ReadAll(resp.Body)
+
+}
 
 type Local struct {
 	Country  string
@@ -29,22 +52,24 @@ func (m AnywhereRequest) Query() string {
 		m.ReturnDate)
 }
 
-const key = "TBD"
-const anywhereQueryFormat = "http://partners.api.skyscanner.net/apiservices/browseroutes/v1.0/%s/%s/%s/%s/%s/%s/%s?apiKey=" + key
-const anywhereQueryExample = "http://partners.api.skyscanner.net/apiservices/browseroutes/v1.0/GB/GBP/en-GB/LON/anywhere/20160819/20160821?apiKey=" + key
+const anywhereQueryFormat = "http://partners.api.skyscanner.net/apiservices/browseroutes/v1.0/%s/%s/%s/%s/%s/%s/%s"
+const anywhereQueryExample = "http://partners.api.skyscanner.net/apiservices/browseroutes/v1.0/GB/GBP/en-GB/LON/anywhere/20160819/20160821"
 
-func runQuery() {
+func runQuery(engine QueryEngine) {
 	const url = anywhereQueryExample
-	fmt.Printf(url)
+	data, err := engine.Get(url)
+	fmt.Println(string(data))
+	if err != nil {
+		panic(err)
+	} else {
+		results := ParseAnywhereQuery(data)
+		results.PrintStats()
+	}
 
-	resp, err := http.Get(anywhereQueryExample)
-
-	fmt.Println(resp)
-	fmt.Println(err)
 }
 
 func main() {
-	var request AnywhereRequest
 
-	runQuery()
+	engine := LiveEngine{Key: "ar926739961631567929873917891697"}
+	runQuery(engine)
 }

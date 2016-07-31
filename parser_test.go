@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"github.com/stretchr/testify/assert"
@@ -107,11 +108,13 @@ func TestCarrier(t *testing.T) {
 
 }
 
-const anywhereLocation = "testdata/anywhere.xml"
+const anywhereLocationBase = "testdata/anywhere"
+const anywhereLocationXml = anywhereLocationBase + ".xml"
+const anywhereLocationJson = anywhereLocationBase + ".json"
 
 func TestAnywhere(t *testing.T) {
 
-	data, err := os.Open(anywhereLocation)
+	data, err := os.Open(anywhereLocationXml)
 
 	if err == nil {
 		defer data.Close()
@@ -130,5 +133,53 @@ func TestAnywhere(t *testing.T) {
 	} else {
 		panic(err)
 	}
+
+}
+
+func TestAnywhereJson(t *testing.T) {
+
+	data, err := os.Open(anywhereLocationJson)
+
+	if err == nil {
+		defer data.Close()
+		decoder := json.NewDecoder(data)
+		var anywhere AnywhereQuery
+		decoder.Decode(&anywhere)
+		fmt.Println(anywhere)
+		anywhere.PrintStats()
+
+		assert.Equal(t, 1, len(anywhere.Currencies))
+		assert.Equal(t, 182, len(anywhere.Quotes))
+		assert.Equal(t, 199, len(anywhere.Routes))
+		assert.Equal(t, 350, len(anywhere.Places))
+		assert.Equal(t, 65, len(anywhere.Carriers))
+
+	} else {
+		panic(err)
+	}
+
+}
+
+const route = `
+    {
+      "QuoteDateTime": "2016-07-31T07:51:00",
+      "Price": 568,
+      "QuoteIds": [
+        1,
+        2
+      ],
+      "DestinationId": 1752,
+      "OriginId": 3169460
+    }
+`
+
+func TestRouteJson(t *testing.T) {
+	var e RouteDto
+	if err := json.Unmarshal([]byte(route), &e); err != nil {
+		panic(err)
+	}
+	fmt.Println(e)
+
+	assert.Equal(t, 2, len(e.QuoteIds))
 
 }
