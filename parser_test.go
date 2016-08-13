@@ -119,7 +119,7 @@ func TestAnywhere(t *testing.T) {
 	if err == nil {
 		defer data.Close()
 		decoder := xml.NewDecoder(data)
-		var anywhere AnywhereQuery
+		var anywhere BrowseRoutesReply
 		decoder.Decode(&anywhere)
 		fmt.Println(anywhere)
 		anywhere.PrintStats()
@@ -143,7 +143,7 @@ func TestAnywhereJson(t *testing.T) {
 	if err == nil {
 		defer data.Close()
 		decoder := json.NewDecoder(data)
-		var anywhere AnywhereQuery
+		var anywhere BrowseRoutesReply
 		decoder.Decode(&anywhere)
 		fmt.Println(anywhere)
 		anywhere.PrintStats()
@@ -154,6 +154,7 @@ func TestAnywhereJson(t *testing.T) {
 		assert.Equal(t, 350, len(anywhere.Places))
 		assert.Equal(t, 65, len(anywhere.Carriers))
 
+		anywhere.GetPlacesByPrice2()
 	} else {
 		panic(err)
 	}
