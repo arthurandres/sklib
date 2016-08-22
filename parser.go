@@ -5,19 +5,24 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strconv"
+	"time"
 )
 
 const (
-	Country = "Country"
-	Station = "Station"
+	Country               = "Country"
+	Station               = "Station"
+	UpdatesPendingStatus  = "UpdatesPending"
+	UpdatesCompleteStatus = "UpdatesComplete"
 )
 
 type CurrencyDto struct {
-	Code                        string
-	Symbol                      string
+	Code string
+	//Symbol                      string
+	ThousandsSeparator          string
 	DecimalSeparator            string
 	SymbolOnLeft                bool
 	SpaceBetweenAmountAndSymbol bool
@@ -32,6 +37,20 @@ type BrowseRoutesReply struct {
 	Quotes     []QuoteDto    `xml:">QuoteDto"`
 	Places     []PlaceDto    `xml:">PlaceDto"`
 	Carriers   []CarriersDto `xml:">CarriersDto"`
+}
+
+type LiveReply struct {
+	XMLName     xml.Name `xml:"PollSessionResponseDto"`
+	SessionKey  string
+	Status      string
+	Query       LiveQueryDto
+	Segments    []SegmentApiDto      `xml:">SegmentApiDto"`
+	Carriers    []CarrierApiDto      `xml:">CarrierApiDto"`
+	Agents      []AgentApiDto        `xml:">AgentApiDto"`
+	Places      []PlaceApiDto        `xml:">PlaceApiDto"`
+	Currencies  []CurrencyDto        `xml:">CurrencyDto"`
+	Legs        []ItineraryLegApiDto `xml:">ItineraryLegApiDto"`
+	Itineraries []ItineraryApiDto    `xml:">ItineraryApiDto"`
 }
 
 type RouteDto struct {
@@ -70,6 +89,103 @@ type CarriersDto struct {
 	Name      string
 }
 
+type CarrierApiDto struct {
+	Id          int
+	Code        string
+	Name        string
+	ImageUrl    string
+	DisplayCode string
+}
+
+type PlaceApiDto struct {
+	Id       int
+	ParentId json.Number
+	Code     string
+	Type     string
+	Name     string
+}
+
+type AgentApiDto struct {
+	Id                 int
+	Name               string
+	ImageUrl           string
+	Status             string
+	OptimisedForMobile bool
+	BookingNumber      string
+	Type               string
+}
+
+type SegmentApiDto struct {
+	Id                 int
+	OriginStation      int
+	DestinationStation int
+	DepartureDateTime  string
+	ArrivalDateTime    string
+	Carrier            int
+	OperatingCarrier   int
+	Duration           int
+	FlightNumber       string
+	JourneyMode        string
+	Directionality     string
+}
+
+type FlightNumberDto struct {
+	FlightNumber string
+	CarrierId    int
+}
+
+type ItineraryLegApiDto struct {
+	Id                 string
+	SegmentIds         []int `xml:">int"`
+	OriginStation      int
+	DestinationStation int
+	Departure          string
+	Arrival            string
+	Duration           int
+	JourneyMode        string
+	Stops              []int `xml:">int"`
+	Carriers           []int `xml:">int"`
+	OperatingCarriers  []int `xml:">int"`
+	Directionality     string
+	FlightNumbers      []FlightNumberDto `xml:">FlightNumberDto"`
+}
+
+type PricingOptionApiDto struct {
+	Agents            []int `xml:">int"`
+	QuoteAgeInMinutes int
+	Price             float64
+	DeeplinkUrl       string
+}
+
+type BookingDetailsLinkDto struct {
+	Uri    string
+	Body   string
+	Method string
+}
+
+type LiveQueryDto struct {
+	Country          string
+	Currency         string
+	Locale           string
+	Adults           int
+	Children         int
+	Infants          int
+	OriginPlace      json.Number
+	DestinationPlace json.Number
+	OutboundDate     string
+	InboundDate      string
+	LocationSchema   string
+	CabinClass       string
+	GroupPricing     bool
+}
+
+type ItineraryApiDto struct {
+	OutboundLegId      string
+	InboundLegId       string
+	PricingOptions     []PricingOptionApiDto `xml:">PricingOptionApiDto"`
+	BookingDetailsLink BookingDetailsLinkDto
+}
+
 func ParseBrowseRoutesReply(data []byte) *BrowseRoutesReply {
 	decoder := xml.NewDecoder(bytes.NewReader(data))
 	anywhere := &BrowseRoutesReply{}
@@ -96,7 +212,6 @@ func parse() {
 	decoder := xml.NewDecoder(data)
 	var anywhere BrowseRoutesReply
 	decoder.Decode(&anywhere)
-	fmt.Println(anywhere)
 }
 
 func (m *BrowseRoutesReply) PrintStats() {
@@ -268,5 +383,56 @@ func (m *BrowseRoutesReply) GetFullQuotes() FullQuotes {
 			results = append(results, FullQuote{quote, destination})
 		}
 	}
+	return results
+}
+
+func (m *BrowseRoutesReply) GetBestQuotes() FullQuotes {
+	results := make(FullQuotes, 0, len(m.Quotes))
+	mapping := make(map[int]QuoteDto)
+
+	places := m.GetPlacesById()
+	for _, quote := range m.Quotes {
+		if quote.IsReturn() {
+			bestQuote, exists := mapping[quote.OutboundLeg.DestinationId]
+			if !exists || quote.MinPrice < bestQuote.MinPrice {
+				mapping[quote.OutboundLeg.DestinationId] = quote
+			}
+		}
+	}
+
+	for _, quote := range mapping {
+		destination := places[quote.OutboundLeg.DestinationId]
+		results = append(results, FullQuote{quote, destination})
+	}
+	return results
+}
+
+func (m *BrowseRoutesReply) GetBestPrice() float64 {
+	result := math.MaxFloat64
+	for _, quote := range m.Quotes {
+		if quote.IsReturn() && quote.MinPrice < result {
+			result = quote.MinPrice
+		}
+	}
+	return result
+}
+
+func FormatDate(input string) string {
+	date, err := time.Parse("20060102", input)
+	if err != nil {
+		panic(err)
+	}
+	return date.Format("2006-01-02")
+}
+
+func (m *LiveReply) Stats() map[string]int {
+	results := make(map[string]int)
+	results["Itineraries"] = len(m.Itineraries)
+	results["Legs"] = len(m.Legs)
+	results["Segments"] = len(m.Segments)
+	results["Carriers"] = len(m.Carriers)
+	results["Agents"] = len(m.Agents)
+	results["Places"] = len(m.Places)
+	results["Currencies"] = len(m.Currencies)
 	return results
 }
