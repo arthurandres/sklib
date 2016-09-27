@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ReferenceServiceResponseDto xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Locales>
+    <LocaleDto>
+      <Code>ar-AE</Code>
+      <Name>العربية (الإمارات العربية المتحدة)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>az-AZ</Code>
+      <Name>Azərbaycan­ılı (Azərbaycan)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>bg-BG</Code>
+      <Name>български (България)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>ca-ES</Code>
+      <Name>català (català)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>cs-CZ</Code>
+      <Name>čeština (Česká republika)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>da-DK</Code>
+      <Name>dansk (Danmark)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>de-DE</Code>
+      <Name>Deutsch (Deutschland)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>el-GR</Code>
+      <Name>Ελληνικά (Ελλάδα)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>en-GB</Code>
+      <Name>English (United Kingdom)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>en-GG</Code>
+      <Name>English (United Kingdom)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>en-US</Code>
+      <Name>English (United States)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>es-ES</Code>
+      <Name>Español (España)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>es-MX</Code>
+      <Name>Español (México)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>et-EE</Code>
+      <Name>eesti (Eesti)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>fi-FI</Code>
+      <Name>suomi (Suomi)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>fr-FR</Code>
+      <Name>français (France)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>hr-HR</Code>
+      <Name>hrvatski (Hrvatska)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>hu-HU</Code>
+      <Name>magyar (Magyarország)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>id-ID</Code>
+      <Name>Bahasa Indonesia (Indonesia)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>it-IT</Code>
+      <Name>italiano (Italia)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>ja-JP</Code>
+      <Name>日本語 (日本)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>ko-KR</Code>
+      <Name>한국어 (대한민국)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>lt-LT</Code>
+      <Name>lietuvių (Lietuva)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>lv-LV</Code>
+      <Name>latviešu (Latvija)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>ms-MY</Code>
+      <Name>Bahasa Melayu (Malaysia)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>nb-NO</Code>
+      <Name>norsk, bokmål (Norge)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>nl-NL</Code>
+      <Name>Nederlands (Nederland)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>pl-PL</Code>
+      <Name>polski (Polska)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>pt-BR</Code>
+      <Name>Português (Brasil)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>pt-PT</Code>
+      <Name>português (Portugal)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>ro-RO</Code>
+      <Name>română (România)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>ru-RU</Code>
+      <Name>русский (Россия)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>sk-SK</Code>
+      <Name>slovenčina (Slovenská republika)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>sv-SE</Code>
+      <Name>svenska (Sverige)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>th-TH</Code>
+      <Name>ไทย (ไทย)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>tl-PH</Code>
+      <Name>Filipino (Pilipinas)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>tr-TR</Code>
+      <Name>Türkçe (Türkiye)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>uk-UA</Code>
+      <Name>українська (Україна)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>vi-VN</Code>
+      <Name>Tiếng Việt (Việt Nam)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>zh-CN</Code>
+      <Name>简体中文</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>zh-HK</Code>
+      <Name>中文(香港特別行政區)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>zh-SG</Code>
+      <Name>中文(新加坡)</Name>
+    </LocaleDto>
+    <LocaleDto>
+      <Code>zh-TW</Code>
+      <Name>繁體中文</Name>
+    </LocaleDto>
+  </Locales>
+</ReferenceServiceResponseDto>
