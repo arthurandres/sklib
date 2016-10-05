@@ -1,4 +1,4 @@
-package main
+package sklib
 
 import (
 	"bytes"
@@ -19,6 +19,9 @@ const (
 	LivePendingLocation      = TestDataBase + "live_pending.xml"
 	LiveCompleteLocation     = TestDataBase + "live_complete.xml"
 	LiveCompleteJsonLocation = TestDataBase + "live_complete.json"
+	CurrenciesLocation       = TestDataBase + "currencies.xml"
+	LocalesLocation          = TestDataBase + "locales.xml"
+	CountriesLocation        = TestDataBase + "countries.en-GB.xml"
 
 	quote = `
 		<QuoteDto>
@@ -80,7 +83,7 @@ const (
       "OriginId": 3169460
     }`
 
-	currency = `
+	currencyData = `
    <CurrencyDto>
       <Code>GBP</Code>
       <Symbol>£</Symbol>
@@ -563,7 +566,7 @@ func TestParsePlaceApiDto(t *testing.T) {
 
 func TestParseCurrencyDto(t *testing.T) {
 	var e CurrencyDto
-	if err := xml.Unmarshal([]byte(currency), &e); err != nil {
+	if err := xml.Unmarshal([]byte(currencyData), &e); err != nil {
 		panic(err)
 	}
 
@@ -579,7 +582,7 @@ func TestParseCurrencyDto(t *testing.T) {
 }
 
 func TestParseLeg(t *testing.T) {
-	var e Leg
+	var e LegDto
 	xml.Unmarshal([]byte(leg), &e)
 	assert.Equal(t, 65698, e.OriginId, "diff")
 
@@ -717,13 +720,36 @@ func ParseFromJsonFile(fileName string, data interface{}) {
 	}
 }
 
-func TestLiveCompleteJson(t *testing.T) {
-
+func GetTestLiveReply() *LiveReply {
 	var reply LiveReply
 	ParseFromJsonFile(LiveCompleteJsonLocation, &reply)
+	return &reply
+
+}
+
+func TestLiveCompleteJson(t *testing.T) {
+	reply := GetTestLiveReply()
 	assert.Equal(t, UpdatesCompleteStatus, reply.Status)
 	var expected = map[string]int{
 		"Currencies": 10, "Itineraries": 699, "Places": 82, "Legs": 201, "Segments": 311, "Carriers": 33, "Agents": 33}
 	assert.Equal(t, expected, reply.Stats())
 
+}
+
+func TestCurrencies(t *testing.T) {
+	var currencies CurrenciesReply
+	ParseFromXmlFile(CurrenciesLocation, &currencies)
+	assert.Equal(t, 153, len(currencies.Currencies))
+}
+
+func TestLocales(t *testing.T) {
+	var locales LocalesReply
+	ParseFromXmlFile(LocalesLocation, &locales)
+	assert.Equal(t, 43, len(locales.Locales))
+}
+
+func TestCountries(t *testing.T) {
+	var countries CountriesReply
+	ParseFromXmlFile(CountriesLocation, &countries)
+	assert.Equal(t, 234, len(countries.Countries))
 }

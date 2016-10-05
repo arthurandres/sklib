@@ -1,4 +1,4 @@
-package main
+package sklib
 
 import (
 	"fmt"
@@ -575,15 +575,6 @@ func ApplyFilter(input Itineraries, filter ItineraryFilter) Itineraries {
 
 }
 
-func Display(input Itineraries) {
-	for _, itinerary := range input {
-		fmt.Println(
-			itinerary.OutboundLeg.Display(),
-			itinerary.InboundLeg.Display(),
-			itinerary.GetPrice())
-	}
-}
-
 func (m *Leg) Display() string {
 	return fmt.Sprintf("%s=>%s %d %s %s",
 		m.Origin.Code,
@@ -604,3 +595,10 @@ func (m *Itinerary) GetPrice() float64 {
 func (a Itineraries) Len() int           { return len(a) }
 func (a Itineraries) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a Itineraries) Less(i, j int) bool { return a[i].GetPrice() < a[j].GetPrice() }
+
+func (m *Itinerary) Carriers() Carriers {
+	carriers := make(Carriers, 0)
+	carriers = append(carriers, m.OutboundLeg.Carriers...)
+	carriers = append(carriers, m.InboundLeg.Carriers...)
+	return carriers
+}

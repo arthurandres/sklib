@@ -1,4 +1,4 @@
-package main
+package sklib
 
 import (
 	"bytes"
@@ -13,21 +13,51 @@ import (
 )
 
 const (
-	Country               = "Country"
-	Station               = "Station"
+	CountryValue          = "Country"
+	StationValue          = "Station"
+	CityValue             = "City"
+	AirportValue          = "Airport"
 	UpdatesPendingStatus  = "UpdatesPending"
 	UpdatesCompleteStatus = "UpdatesComplete"
+	DateFormatUrl         = "20060102"
+	DateFormatForm        = "2006-01-02"
+	DateTimeFormat        = "2006-01-02T15:04:05"
 )
 
 type CurrencyDto struct {
-	Code string
-	//Symbol                      string
+	Code                        string
+	Symbol                      string
 	ThousandsSeparator          string
 	DecimalSeparator            string
 	SymbolOnLeft                bool
 	SpaceBetweenAmountAndSymbol bool
 	RoundingCoefficient         int
 	DecimalDigits               int
+}
+
+type LocalesReply struct {
+	XMLName xml.Name    `xml:"ReferenceServiceResponseDto"`
+	Locales []LocaleDto `xml:">LocaleDto"`
+}
+
+type LocaleDto struct {
+	Code string
+	Name string
+}
+
+type CountriesReply struct {
+	XMLName   xml.Name     `xml:"ReferenceServiceResponseDto"`
+	Countries []CountryDto `xml:">CountryDto"`
+}
+
+type CountryDto struct {
+	Code string
+	Name string
+}
+
+type CurrenciesReply struct {
+	XMLName    xml.Name      `xml:"ReferenceServiceResponseDto"`
+	Currencies []CurrencyDto `xml:">CurrencyDto"`
 }
 
 type BrowseRoutesReply struct {
@@ -61,7 +91,7 @@ type RouteDto struct {
 	OriginId      int
 }
 
-type Leg struct {
+type LegDto struct {
 	CarrierIds    []int `xml:">int"`
 	OriginId      int
 	DestinationId int
@@ -72,8 +102,8 @@ type QuoteDto struct {
 	QuoteId       int
 	MinPrice      float64
 	Direct        bool
-	OutboundLeg   Leg
-	InboundLeg    Leg
+	OutboundLeg   LegDto
+	InboundLeg    LegDto
 	QuoteDateTime string
 }
 
@@ -113,6 +143,10 @@ type AgentApiDto struct {
 	OptimisedForMobile bool
 	BookingNumber      string
 	Type               string
+}
+
+func ParseDateTime(dateTime string) (time.Time, error) {
+	return time.Parse(DateTimeFormat, dateTime)
 }
 
 type SegmentApiDto struct {
@@ -345,7 +379,7 @@ func (m *RouteDto) Valid() bool {
 }
 
 func (m *PlaceDto) IsCountry() bool {
-	return m.Type == Country
+	return m.Type == CountryValue
 }
 
 func (m *QuoteDto) IsReturn() bool {
@@ -418,11 +452,11 @@ func (m *BrowseRoutesReply) GetBestPrice() float64 {
 }
 
 func FormatDate(input string) string {
-	date, err := time.Parse("20060102", input)
+	date, err := time.Parse(DateFormatUrl, input)
 	if err != nil {
 		panic(err)
 	}
-	return date.Format("2006-01-02")
+	return date.Format(DateFormatForm)
 }
 
 func (m *LiveReply) Stats() map[string]int {
@@ -435,4 +469,9 @@ func (m *LiveReply) Stats() map[string]int {
 	results["Places"] = len(m.Places)
 	results["Currencies"] = len(m.Currencies)
 	return results
+}
+
+func ParseJson(data []byte, output interface{}) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	return decoder.Decode(output)
 }

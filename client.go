@@ -1,12 +1,10 @@
-package main
+package sklib
 
 import (
-	"bytes"
-	"encoding/json"
-	"flag"
 	"fmt"
 	"github.com/boltdb/bolt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"sort"
@@ -15,8 +13,11 @@ import (
 )
 
 const (
+	cacheLocation      = "cache.db"
+	bucketName         = "cache"
 	browseRouteFormat  = "http://partners.api.skyscanner.net/apiservices/browseroutes/v1.0/%s/%s/%s/%s/%s"
 	browseRouteExample = "http://partners.api.skyscanner.net/apiservices/browseroutes/v1.0/GB/GBP/en-GB/LON/anywhere/20160819/20160821"
+	liveUrl            = "http://partners.api.skyscanner.net/apiservices/pricing/v1.0"
 	anywhere           = "anywhere"
 	linkBase           = "https://www.skyscanner.net/transport/flights/%s/%s/%s/%s/"
 	LocationKey        = "Location"
@@ -25,6 +26,7 @@ const (
 
 type RequestEngine interface {
 	Get(url string) (payload []byte, err error)
+	PostAndPoll(url string, form url.Values) (payload []byte, err error)
 }
 
 type LiveEngine struct {
@@ -33,6 +35,25 @@ type LiveEngine struct {
 
 func FormatKey(key string) string {
 	return ApiKeyTag + key
+}
+
+func (m *LiveEngine) PostAndPoll(url string, form url.Values) ([]byte, error) {
+	form.Set("apiKey", m.Key)
+
+	resp, err := http.PostForm(url, form)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	fmt.Println("response Status:", resp.Status)
+	fmt.Println("response Headers:", resp.Header)
+	location := resp.Header.Get(LocationKey)
+	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println("response Body:", len(body))
+	fmt.Println(location)
+	fullUrl := location + FormatKey(m.Key)
+	return Poll(fullUrl)
 }
 
 func (m *LiveEngine) Get(url string) ([]byte, error) {
@@ -57,28 +78,49 @@ type BoltStore struct {
 	Bucket string
 }
 
+type WriteOnlyStore struct {
+	Store CacheStore
+}
+
 type CachedEngine struct {
-	Engine    RequestEngine
-	Cache     CacheStore
-	WriteOnly bool
+	Engine RequestEngine
+	Cache  CacheStore
 }
 
 type SlowEngine struct {
 	Engine RequestEngine
-	Delay  time.Duration
 }
 
 func (m *SlowEngine) Get(url string) ([]byte, error) {
-	time.Sleep(m.Delay)
+	m.Wait()
 	return m.Engine.Get(url)
+}
+
+func (m *SlowEngine) Wait() {
+	random := rand.Intn(5000)
+	time.Sleep(time.Millisecond * time.Duration(random))
+}
+
+func (m *SlowEngine) PostAndPoll(url string, form url.Values) ([]byte, error) {
+	m.Wait()
+	return m.Engine.PostAndPoll(url, form)
+}
+
+func (m *CachedEngine) PostAndPoll(url string, form url.Values) ([]byte, error) {
+	cacheUrl := url + "?" + form.Encode()
+	if cache := m.Cache.Get(cacheUrl); cache != nil {
+		return cache, nil
+	}
+	payload, err := m.Engine.PostAndPoll(url, form)
+	if err != nil {
+		return nil, err
+	}
+	return payload, m.Cache.Set(cacheUrl, payload)
 }
 
 func (m *CachedEngine) Get(url string) ([]byte, error) {
 
-	var cache []byte
-	if !m.WriteOnly {
-		cache = m.Cache.Get(url)
-	}
+	cache := m.Cache.Get(url)
 	if cache != nil {
 		return cache, nil
 	}
@@ -86,22 +128,16 @@ func (m *CachedEngine) Get(url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = m.Cache.Set(url, payload)
-	if err != nil {
-		panic(err)
-	}
-
-	return payload, err
-
+	return payload, m.Cache.Set(url, payload)
 }
 
-type Local struct {
+type Localisation struct {
 	Country  string
 	Currency string
 	Language string
 }
 
-func (m Local) SubUrl() string {
+func (m *Localisation) SubUrl() string {
 	return fmt.Sprintf("%s/%s/%s",
 		m.Country,
 		m.Currency,
@@ -109,23 +145,23 @@ func (m Local) SubUrl() string {
 }
 
 type BrowseRoutesRequest struct {
-	Local         Local
-	From          string
-	To            string
+	Localisation  Localisation
+	Origin        string
+	Destination   string
 	DepartureDate string
 	ReturnDate    string
 }
 
-func CreateBrowseRouteRequest(local Local, from string, departureDate string, returnDate string) BrowseRoutesRequest {
+func CreateBrowseRouteRequest(local Localisation, from string, departureDate string, returnDate string) BrowseRoutesRequest {
 	return BrowseRoutesRequest{local, from, anywhere, departureDate, returnDate}
 }
 
 func (m BrowseRoutesRequest) Url() string {
 	return fmt.Sprintf(
 		browseRouteFormat,
-		m.Local.SubUrl(),
-		m.From,
-		m.To,
+		m.Localisation.SubUrl(),
+		m.Origin,
+		m.Destination,
 		m.DepartureDate,
 		m.ReturnDate)
 }
@@ -183,6 +219,14 @@ func (m *BoltStore) Set(key string, data []byte) error {
 	return err
 }
 
+func (m *WriteOnlyStore) Get(key string) []byte {
+	return nil
+}
+
+func (m *WriteOnlyStore) Set(key string, data []byte) error {
+	return m.Store.Set(key, data)
+}
+
 func Test(cs CacheStore) {
 	cs.Get("hello")
 	cs.Get("hello2")
@@ -191,21 +235,18 @@ func Test(cs CacheStore) {
 
 }
 
-func CreateCache() *BoltStore {
+func CreateDB() *bolt.DB {
 	var db *bolt.DB
 	var err error
-	db, err = bolt.Open("cache.db", 0600, nil)
+	db, err = bolt.Open(cacheLocation, 0600, nil)
 	if err != nil {
 		panic(err)
 	}
-	return &BoltStore{db, "cache"}
+	return db
 }
 
-func GetLocalExample() Local {
-	return Local{"GB", "GBP", "en-GB"}
-}
-func GetBrowseRoutesRequestExample() BrowseRoutesRequest {
-	return CreateBrowseRouteRequest(GetLocalExample(), "LON", "20161101", "20161103")
+func CreateCache(db *bolt.DB) *BoltStore {
+	return &BoltStore{db, bucketName}
 }
 
 func insertAll(from map[string]float64, to map[string]float64) {
@@ -215,8 +256,7 @@ func insertAll(from map[string]float64, to map[string]float64) {
 }
 
 type LiveRequest struct {
-	ApiKey        string
-	Local         Local
+	Localisation  Localisation
 	Origin        string
 	Destination   string
 	DepartureDate string
@@ -225,10 +265,9 @@ type LiveRequest struct {
 
 func (m *LiveRequest) Values() url.Values {
 	return url.Values{
-		"apiKey":           {m.ApiKey},
-		"country":          {m.Local.Country},
-		"currency":         {m.Local.Currency},
-		"locale":           {m.Local.Language},
+		"country":          {m.Localisation.Country},
+		"currency":         {m.Localisation.Currency},
+		"locale":           {m.Localisation.Language},
 		"originplace":      {m.Origin},
 		"destinationplace": {m.Destination},
 		"outbounddate":     {FormatDate(m.DepartureDate)},
@@ -236,93 +275,68 @@ func (m *LiveRequest) Values() url.Values {
 		"locationschema":   {"Iata"}}
 }
 
-func CreateLiveRequestExample(key string, origin string, destination string, departureDate string, returnDate string) LiveRequest {
+func (m *LiveRequest) Encode() string {
+	return m.Values().Encode()
+}
+
+func CreateLiveRequest(
+	localisation Localisation,
+	origin string,
+	destination string,
+	departureDate string,
+	returnDate string) LiveRequest {
 
 	return LiveRequest{
-		key,
-		GetLocalExample(),
+		localisation,
 		origin,
 		destination,
 		departureDate,
 		returnDate}
 }
 
-func Poll(url string) {
+func Poll(url string) ([]byte, error) {
 	for {
 		resp, err := http.Get(url)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		defer resp.Body.Close()
 		data, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			panic(err)
 		}
-		decoder := json.NewDecoder(bytes.NewReader(data))
-		fmt.Println(string(data))
-		var reply LiveReply
-		err = decoder.Decode(&reply)
+		if len(data) == 0 {
+			fmt.Println("Empty")
+			time.Sleep(1 * time.Second)
+			continue
+		}
 		if err != nil {
+			panic(err)
+		}
+		var reply LiveReply
+		err = ParseJson(data, &reply)
+		if err != nil {
+			fmt.Println(string(data))
 			panic(err)
 		}
 		fmt.Println(reply.Status)
 		if reply.Status == UpdatesCompleteStatus {
-			break
+			return data, nil
 		}
 		time.Sleep(1 * time.Second)
 	}
 
 }
 
-func PostAndPoll(request LiveRequest) {
-	url := "http://partners.api.skyscanner.net/apiservices/pricing/v1.0"
+func AppendTimeFilter(cp CompositeFilter, time *time.Duration, before, departure bool) CompositeFilter {
+	if time != nil {
+		cp = append(cp, &DepartureAfterFilter{
+			Limit:     *time,
+			Before:    before,
+			Departure: departure})
 
-	resp, err := http.PostForm(url, request.Values())
-	if err != nil {
-		panic(err)
 	}
-
-	defer resp.Body.Close()
-
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
-	location := resp.Header.Get(LocationKey)
-	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("response Body:", string(body))
-
-	fmt.Println(location)
-	fullUrl := location + FormatKey(request.ApiKey)
-	Poll(fullUrl)
-}
-
-var (
-	keyFile       = flag.String("keyFile", "key", "API key provided by skyscanner")
-	origin        = flag.String("from", "LON", "Origin Town/Airport")
-	departureDate = flag.String("out", "20161101", "Date of departure/outbound flight")
-	returnDate    = flag.String("in", "20161103", "Date of return/inbound flight")
-	noCache       = flag.Bool("noCache", false, "Do not read from cache")
-)
-
-type ApplicationParameters struct {
-	KeyFile       string
-	Key           string
-	Origin        string
-	DepartureDate string
-	ReturnDate    string
-	NoCache       bool
-}
-
-func ReadArguments() ApplicationParameters {
-	flag.Parse()
-	key := ReadKey(*keyFile)
-	return ApplicationParameters{
-		KeyFile: *keyFile, Key: key, Origin: *origin, DepartureDate: *departureDate, ReturnDate: *returnDate, NoCache: *noCache}
-}
-
-func main1() {
-	arguments := ReadArguments()
-	lr := CreateLiveRequestExample(arguments.Key, arguments.Origin, "VIE", arguments.DepartureDate, arguments.ReturnDate)
-	PostAndPoll(lr)
+	return cp
 }
 
 func ReadFromFile(fileName string) (string, error) {
@@ -341,10 +355,6 @@ func ReadKey(fileName string) string {
 	return strings.TrimSpace(data)
 }
 
-func main() {
-	main2()
-}
-
 type RequestResults struct {
 	Error error
 	Data  *BrowseRoutesReply
@@ -355,16 +365,6 @@ func runAndPost(request BrowseRoutesRequest, engine RequestEngine, channel chan 
 	channel <- RequestResults{err, data}
 }
 
-func DisplayResults(request BrowseRoutesRequest, quotes FullQuotes) {
-
-	sort.Sort(sort.Reverse(quotes))
-	for _, v := range quotes {
-		link := GetLink(request.From, v.Destination.SkyscannerCode, request.DepartureDate, request.ReturnDate)
-		fmt.Printf("%s %.0f %s %s\n", v.Destination.SkyscannerCode, v.Quote.MinPrice, v.Destination.Name, link)
-	}
-	fmt.Printf("%d results\n", len(quotes))
-}
-
 func LookForCountries(request BrowseRoutesRequest, countries []PlaceDto, engine RequestEngine) (FullQuotes, error) {
 
 	countriesCount := len(countries)
@@ -372,53 +372,100 @@ func LookForCountries(request BrowseRoutesRequest, countries []PlaceDto, engine 
 	channel := make(chan RequestResults, countriesCount)
 
 	for _, place := range countries {
-		fmt.Printf("searching %s\n", place.Name)
-		subRequest := BrowseRoutesRequest{request.Local, request.From, place.SkyscannerCode, request.DepartureDate, request.ReturnDate}
+		subRequest := BrowseRoutesRequest{request.Localisation, request.Origin, place.SkyscannerCode, request.DepartureDate, request.ReturnDate}
 		go runAndPost(subRequest, engine, channel)
 	}
 
 	for i := 0; i < countriesCount; i++ {
+		fmt.Printf("\rReceiving %d/%d", i, countriesCount)
 		subResults := <-channel
 		if subResults.Error != nil {
 			return make(FullQuotes, 0, 0), subResults.Error
 		}
 		results = append(results, subResults.Data.GetBestQuotes()...)
 	}
+	fmt.Printf("\n")
 
 	return results, nil
 }
 
-func main2() {
-	arguments := ReadArguments()
-	engine := &LiveEngine{Key: arguments.Key}
-	cache := CreateCache()
-	ce := &CachedEngine{engine, cache, *noCache}
-	sce := &SlowEngine{ce, time.Millisecond * 500}
-
-	request := CreateBrowseRouteRequest(GetLocalExample(), arguments.Origin, arguments.DepartureDate, arguments.ReturnDate)
-	reply, err := runRequest(sce, request)
-	if err != nil {
-		panic(err)
-	}
-
-	results, err := LookForCountries(request, reply.GetCountries(), sce)
-	if err != nil {
-		panic(err)
-	}
-	DisplayResults(request, results)
-	sort.Sort(results)
+func GetTowns(quotes FullQuotes) []PlaceDto {
 
 	townsMap := make(map[string]PlaceDto)
-	for _, v := range results {
+	for _, v := range quotes {
 		townsMap[v.Destination.SkyscannerCode] = v.Destination
 	}
 	towns := make([]PlaceDto, 0, 0)
-	for k, v := range townsMap {
-		fmt.Println(k, v)
+	for _, v := range townsMap {
 		towns = append(towns, v)
 	}
+	return towns
+}
 
-	results2, err := LookForCountries(request, towns, sce)
-	DisplayResults(request, results2)
+type SearchRequest struct {
+	Localisation  Localisation
+	Origin        string
+	Destinations  []string
+	DepartureDate string
+	ReturnDate    string
+}
 
+func Search(engine RequestEngine, arguments SearchRequest) (Itineraries, error) {
+	results := make(Itineraries, 0)
+	for _, destination := range arguments.Destinations {
+		fmt.Println("Searching", destination)
+		liveRequest := CreateLiveRequest(
+			arguments.Localisation,
+			arguments.Origin,
+			destination,
+			arguments.DepartureDate,
+			arguments.ReturnDate)
+		data, err := engine.PostAndPoll(liveUrl, liveRequest.Values())
+		if err != nil {
+			return nil, err
+		}
+		var reply LiveReply
+		err = ParseJson(data, &reply)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println("Results", reply.Stats())
+		flightsData, err := ReadLiveReply(&reply)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, flightsData.Itineraries...)
+	}
+
+	return results, nil
+}
+
+func Browse(engine RequestEngine, arguments BrowseRoutesRequest) (FullQuotes, error) {
+
+	request := CreateBrowseRouteRequest(arguments.Localisation, arguments.Origin, arguments.DepartureDate, arguments.ReturnDate)
+	fmt.Println("Searching countries...")
+	reply, err := runRequest(engine, request)
+	if err != nil {
+		panic(err)
+	}
+
+	results, err := LookForCountries(request, reply.GetCountries(), engine)
+	if err != nil {
+		panic(err)
+	}
+	sort.Sort(results)
+	towns := GetTowns(results)
+
+	fmt.Println("Searching towns...")
+	return LookForCountries(request, towns, engine)
+}
+
+func FilterDirects(quotes FullQuotes) FullQuotes {
+	results := make(FullQuotes, 0, len(quotes))
+	for _, quote := range quotes {
+		if quote.Quote.Direct {
+			results = append(results, quote)
+		}
+	}
+	return results
 }
