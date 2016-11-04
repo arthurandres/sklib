@@ -614,7 +614,6 @@ func TestAnywhere(t *testing.T) {
 
 	var anywhere BrowseRoutesReply
 	ParseFromXmlFile(AnywhereLocationXml, &anywhere)
-	anywhere.PrintStats()
 
 	assert.Equal(t, 1, len(anywhere.Currencies))
 	assert.Equal(t, 312, len(anywhere.Quotes))
@@ -656,15 +655,13 @@ func TestAnywhereJson(t *testing.T) {
 		panic(err)
 	}
 
-	anywhere.PrintStats()
-
 	assert.Equal(t, 1, len(anywhere.Currencies))
 	assert.Equal(t, 182, len(anywhere.Quotes))
 	assert.Equal(t, 199, len(anywhere.Routes))
 	assert.Equal(t, 350, len(anywhere.Places))
 	assert.Equal(t, 65, len(anywhere.Carriers))
 
-	anywhere.GetPlacesByPrice2()
+	anywhere.GetPlacesByPrice()
 
 }
 func TestRouteJson(t *testing.T) {

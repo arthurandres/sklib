@@ -1,7 +1,6 @@
 package sklib
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -56,7 +55,6 @@ func TestReadSegment(t *testing.T) {
 	}
 
 	assert.Equal(t, "LGW", segment.Origin.Code)
-	fmt.Println(segment)
 }
 
 func TestReadSegments(t *testing.T) {
@@ -68,5 +66,4 @@ func TestReadSegments(t *testing.T) {
 		panic(err)
 	}
 	assert.Equal(t, len(reply.Segments), len(segments))
-	fmt.Println(segments)
 }
