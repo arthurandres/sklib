@@ -620,7 +620,6 @@ func TestAnywhere(t *testing.T) {
 	assert.Equal(t, 222, len(anywhere.Routes))
 	assert.Equal(t, 478, len(anywhere.Places))
 	assert.Equal(t, 73, len(anywhere.Carriers))
-
 }
 
 func OpenOrPanic(fileName string) *os.File {
@@ -640,7 +639,6 @@ func ReadOrPanic(fileName string) []byte {
 		panic(err)
 	}
 	return data
-
 }
 
 func GetFileReader(fileName string) io.Reader {
@@ -662,8 +660,8 @@ func TestAnywhereJson(t *testing.T) {
 	assert.Equal(t, 65, len(anywhere.Carriers))
 
 	anywhere.GetPlacesByPrice()
-
 }
+
 func TestRouteJson(t *testing.T) {
 	var e RouteDto
 	if err := json.Unmarshal([]byte(route), &e); err != nil {
@@ -676,7 +674,7 @@ func TestRouteJson(t *testing.T) {
 
 func TestFormat(t *testing.T) {
 
-	assert.Equal(t, "2016-08-16", FormatDate("20160816"))
+	assert.Equal(t, "2016-08-16", FormatDateToForm("20160816"))
 }
 
 func TestLiveComplete(t *testing.T) {
@@ -749,4 +747,12 @@ func TestCountries(t *testing.T) {
 	var countries CountriesReply
 	ParseFromXmlFile(CountriesLocation, &countries)
 	assert.Equal(t, 234, len(countries.Countries))
+}
+
+func TestParseUrlDate(t *testing.T) {
+	_, err := ParseUrlDate("20160101")
+	assert.Equal(t, nil, err)
+	_, err = ParseUrlDate("20160230")
+	assert.NotEqual(t, nil, err)
+
 }

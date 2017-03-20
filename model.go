@@ -176,7 +176,7 @@ func GetPlaceTypeValue(placeType string) int {
 	case AirportValue:
 		return 3
 	default:
-		panic("Unknown place type: " + placeType)
+		panic(fmt.Errorf("Unknown place type: %s", placeType))
 	}
 }
 
@@ -601,4 +601,19 @@ func (m *Itinerary) Carriers() Carriers {
 	carriers = append(carriers, m.OutboundLeg.Carriers...)
 	carriers = append(carriers, m.InboundLeg.Carriers...)
 	return carriers
+}
+
+func (m CompositeFilter) AppendDirectOnly() CompositeFilter {
+	return append(m, &DirectFilter{Direct: true})
+}
+
+func (m CompositeFilter) AppendTimeFilter(time *time.Duration, before, departure bool) CompositeFilter {
+	if time != nil {
+		return append(m, &DepartureAfterFilter{
+			Limit:     *time,
+			Before:    before,
+			Departure: departure})
+
+	}
+	return m
 }
